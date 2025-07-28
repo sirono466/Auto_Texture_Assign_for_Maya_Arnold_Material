@@ -127,6 +127,7 @@ def apply_textures_to_materials(materials):
         if mat.roughness:
             tex = cmds.shadingNode("file", asTexture=True, name=f"{shader}_Roughness_tex")
             cmds.setAttr(tex + ".fileTextureName", mat.roughness, type="string")
+            cmds.setAttr(tex + ".colorSpace", "Raw", type="string")
             cmds.connectAttr(tex + ".outColorR", shader + ".specularRoughness", force=True)
             cmds.connectAttr(tex + ".outColorR", shader + ".diffuseRoughness", force=True)
 
@@ -134,6 +135,7 @@ def apply_textures_to_materials(materials):
         if mat.metalness:
             tex = cmds.shadingNode("file", asTexture=True, name=f"{shader}_Metalness_tex")
             cmds.setAttr(tex + ".fileTextureName", mat.metalness, type="string")
+            cmds.setAttr(tex + ".colorSpace", "Raw", type="string")
             cmds.connectAttr(tex + ".outColorR", shader + ".metalness", force=True)
 
         # === Normal Map ===
