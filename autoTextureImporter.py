@@ -137,38 +137,51 @@ def apply_textures_to_materials(materials):
             cmds.setAttr(tex + ".colorSpace", "Raw", type="string")
             cmds.connectAttr(tex + ".outColorR", shader + ".metalness", force=True)
 
-        # === Bump and Normal ===
+        # === Combined Height (Bump) and Normal Map ===
         if mat.height or mat.normal:
-            bump_name = f"{shader}_Height_Bump"
-            bump = cmds.shadingNode("aiBump2d", asUtility=True, name=bump_name)
-            if not cmds.isConnected(bump + ".outValue", shader + ".normalCamera"):
-                cmds.connectAttr(bump + ".outValue", shader + ".normalCamera", force=True)
-                cmds.setAttr(bump + ".bumpHeight", 2)
+            bump_node = f"{shader}_Bump"
+            if not cmds.objExists(bump_node):
+                bump = cmds.shadingNode("aiBump2d", asUtility=True, name=bump_node)
+            else:
+                bump = bump_node
+            cmds.setAttr(bump + ".bumpMap", 1)  # Tangent space
+            cmds.setAttr(bump + ".bumpHeight", 2.0)
 
-        # === Height Map as Bump Map ===
-        if mat.height:
-            tex_name = f"{shader}_Height_tex"
+            # Normal Map
+            if mat.normal:
+                normal_tex = f"{shader}_Normal_tex"
+                if not cmds.objExists(normal_tex):
+                    normal_file = cmds.shadingNode("file", asTexture=True, name=normal_tex)
+                else:
+                    normal_file = normal_tex
+                cmds.setAttr(normal_file + ".fileTextureName", mat.normal, type="string")
+                cmds.setAttr(normal_file + ".colorSpace", "Raw", type="string")
 
-            tex = tex_name if cmds.objExists(tex_name) else cmds.shadingNode("file", asTexture=True, name=tex_name)
-            cmds.setAttr(tex + ".fileTextureName", mat.height, type="string")
-            cmds.setAttr(tex + ".colorSpace", "Raw", type="string")
-            
-            # Connect to aiBump2d
-            if not cmds.isConnected(tex + ".outColorR", bump + ".bumpMap"):
-                cmds.connectAttr(tex + ".outColorR", bump + ".bumpMap", force=True)
+                normal_map_node = f"{shader}_NormalMap"
+                if not cmds.objExists(normal_map_node):
+                    normal_map = cmds.shadingNode("aiNormalMap", asUtility=True, name=normal_map_node)
+                else:
+                    normal_map = normal_map_node
 
-        # === Normal Map ===
-        #if mat.normal:
-            #tex_name = f"{shader}_Normal_tex"
+                cmds.connectAttr(normal_file + ".outColor", normal_map + ".input", force=True)
 
-            #tex = tex_name if cmds.objExists(tex_name) else cmds.shadingNode("file", asTexture=True, name=tex_name)
+                # Connect aiNormalMap into aiBump2d
+                cmds.connectAttr(normal_map + ".outValue", bump + ".normal", force=True)
 
-            #cmds.setAttr(tex + ".fileTextureName", mat.normal, type="string")
-            #cmds.setAttr(tex + ".colorSpace", "Raw", type="string")
-            
-            # Connect to aiBump2d
-            #if not cmds.isConnected(tex + ".outColor", bump + ".normal"):
-            #    cmds.connectAttr(tex + ".outColor", bump + ".normal", force=True)
+            # Height Map (as bump)
+            if mat.height:
+                height_tex = f"{shader}_Height_tex"
+                if not cmds.objExists(height_tex):
+                    height_file = cmds.shadingNode("file", asTexture=True, name=height_tex)
+                else:
+                    height_file = height_tex
+                cmds.setAttr(height_file + ".fileTextureName", mat.height, type="string")
+                cmds.setAttr(height_file + ".colorSpace", "Raw", type="string")
+
+                cmds.connectAttr(height_file + ".outColorR", bump + ".bumpMap", force=True)
+
+            # Final: Connect to shader
+            cmds.connectAttr(bump + ".outValue", shader + ".normalCamera", force=True)
             
         # === Opacity ===
         if mat.opacity:
