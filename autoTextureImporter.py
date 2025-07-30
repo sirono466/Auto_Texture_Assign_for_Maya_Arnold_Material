@@ -140,12 +140,9 @@ def apply_textures_to_materials(materials):
         # === Combined Height (Bump) and Normal Map ===
         if mat.height or mat.normal:
             bump_node = f"{shader}_Bump"
-            if not cmds.objExists(bump_node):
-                bump = cmds.shadingNode("aiBump2d", asUtility=True, name=bump_node)
-            else:
-                bump = bump_node
+            bump = cmds.shadingNode("aiBump2d", asUtility=True, name=bump_node)
             cmds.setAttr(bump + ".bumpMap", 1)  # Tangent space
-            cmds.setAttr(bump + ".bumpHeight", 2.0)
+            cmds.setAttr(bump + ".bumpHeight", 1.0)
 
             # Normal Map
             if mat.normal:
