@@ -91,27 +91,23 @@ def create_arnold_material_array():
 default_mats = {"lambert1", "standardSurface1", "openPBR_shader1", "particleCloud1", "shaderGlow"}
 
 def apply_textures_to_materials(materials):
+    default_mats = {"lambert1", "standardSurface1", "openPBR_shader1", "particleCloud1", "shaderGlow"}
+
     for mat in materials:
-        
         mat_name = os.path.splitext(os.path.basename(mat.name))[0]
+
         while not cmds.objExists(mat_name) and "_" in mat_name:
             if not cmds.objExists(mat_name):
                 mat_name = mat_name.replace("_", ":", 1)
             if not cmds.objExists(mat_name):
                 if ":" in mat_name:
                     mat_name = mat_name.split(":", 1)[1]
-                    
-#        if not cmds.objExists(mat_name):
-#            mat_name = mat_name.replace("_", ":", 1);
-#            if not cmds.objExists(mat_name):
-#                continue
-                
+
         if not cmds.objExists(mat_name):
             continue
 
         shader = mat_name
         shading_group = cmds.listConnections(shader, type="shadingEngine")
-
         if not shading_group or mat_name in default_mats:
             continue
         else:
@@ -119,13 +115,15 @@ def apply_textures_to_materials(materials):
 
         # === BaseColor ===
         if mat.baseColor:
-            tex = cmds.shadingNode("file", asTexture=True, name=f"{shader}_BaseColor_tex")
+            tex_name = f"{shader}_BaseColor_tex"
+            tex = tex_name if cmds.objExists(tex_name) else cmds.shadingNode("file", asTexture=True, name=tex_name)
             cmds.setAttr(tex + ".fileTextureName", mat.baseColor, type="string")
             cmds.connectAttr(tex + ".outColor", shader + ".baseColor", force=True)
 
         # === Roughness ===
         if mat.roughness:
-            tex = cmds.shadingNode("file", asTexture=True, name=f"{shader}_Roughness_tex")
+            tex_name = f"{shader}_Roughness_tex"
+            tex = tex_name if cmds.objExists(tex_name) else cmds.shadingNode("file", asTexture=True, name=tex_name)
             cmds.setAttr(tex + ".fileTextureName", mat.roughness, type="string")
             cmds.setAttr(tex + ".colorSpace", "Raw", type="string")
             cmds.connectAttr(tex + ".outColorR", shader + ".specularRoughness", force=True)
@@ -133,78 +131,88 @@ def apply_textures_to_materials(materials):
 
         # === Metalness ===
         if mat.metalness:
-            tex = cmds.shadingNode("file", asTexture=True, name=f"{shader}_Metalness_tex")
+            tex_name = f"{shader}_Metalness_tex"
+            tex = tex_name if cmds.objExists(tex_name) else cmds.shadingNode("file", asTexture=True, name=tex_name)
             cmds.setAttr(tex + ".fileTextureName", mat.metalness, type="string")
             cmds.setAttr(tex + ".colorSpace", "Raw", type="string")
             cmds.connectAttr(tex + ".outColorR", shader + ".metalness", force=True)
 
-        # === Normal Map ===
-        if mat.normal:
-            tex = cmds.shadingNode("file", asTexture=True, name=f"{shader}_Normal_tex")
-            cmds.setAttr(tex + ".fileTextureName", mat.normal, type="string")
-            cmds.setAttr(tex + ".colorSpace", "Raw", type="string")
-            normal_map = cmds.shadingNode("aiNormalMap", asUtility=True, name=f"{shader}_NormalMap")
-            cmds.connectAttr(tex + ".outColor", normal_map + ".input", force=True)
-            cmds.connectAttr(normal_map + ".outValue", shader + ".normalCamera", force=True)
+        # === Bump and Normal ===
+        if mat.height or mat.normal:
+            bump_name = f"{shader}_Height_Bump"
+            bump = cmds.shadingNode("aiBump2d", asUtility=True, name=bump_name)
+            if not cmds.isConnected(bump + ".outValue", shader + ".normalCamera"):
+                cmds.connectAttr(bump + ".outValue", shader + ".normalCamera", force=True)
+                cmds.setAttr(bump + ".bumpHeight", 2)
 
-        # === Height / Displacement ===
+        # === Height Map as Bump Map ===
         if mat.height:
-            tex = cmds.shadingNode("file", asTexture=True, name=f"{mat_name}_Height_tex")
+            tex_name = f"{shader}_Height_tex"
+
+            tex = tex_name if cmds.objExists(tex_name) else cmds.shadingNode("file", asTexture=True, name=tex_name)
             cmds.setAttr(tex + ".fileTextureName", mat.height, type="string")
             cmds.setAttr(tex + ".colorSpace", "Raw", type="string")
-        
-            disp_name = f"{mat_name}_Displacement"
             
-            # Check if displacement shader already exists
-            if not cmds.objExists(disp_name):
-                disp = cmds.shadingNode("displacementShader", asShader=True, name=disp_name)
-                cmds.setAttr(disp + ".scale", 0.01)
-            else:
-                disp = disp_name  # just use existing one
-        
-            # Connect texture to displacement shader
-            if not cmds.isConnected(tex + ".outColorR", disp + ".displacement"):
-                cmds.connectAttr(tex + ".outColorR", disp + ".displacement", force=True)
-        
-            # Connect displacement shader to shading group
-            if not cmds.isConnected(disp + ".displacement", shading_group + ".displacementShader"):
-                cmds.connectAttr(disp + ".displacement", shading_group + ".displacementShader", force=True)
-               
+            # Connect to aiBump2d
+            if not cmds.isConnected(tex + ".outColorR", bump + ".bumpMap"):
+                cmds.connectAttr(tex + ".outColorR", bump + ".bumpMap", force=True)
+
+        # === Normal Map ===
+        #if mat.normal:
+            #tex_name = f"{shader}_Normal_tex"
+
+            #tex = tex_name if cmds.objExists(tex_name) else cmds.shadingNode("file", asTexture=True, name=tex_name)
+
+            #cmds.setAttr(tex + ".fileTextureName", mat.normal, type="string")
+            #cmds.setAttr(tex + ".colorSpace", "Raw", type="string")
+            
+            # Connect to aiBump2d
+            #if not cmds.isConnected(tex + ".outColor", bump + ".normal"):
+            #    cmds.connectAttr(tex + ".outColor", bump + ".normal", force=True)
+            
         # === Opacity ===
         if mat.opacity:
-            tex = cmds.shadingNode("file", asTexture=True, name=f"{shader}_Opacity_tex")
+            tex_name = f"{shader}_Opacity_tex"
+            tex = tex_name if cmds.objExists(tex_name) else cmds.shadingNode("file", asTexture=True, name=tex_name)
             cmds.setAttr(tex + ".fileTextureName", mat.opacity, type="string")
             cmds.setAttr(tex + ".colorSpace", "Raw", type="string")
             cmds.connectAttr(tex + ".outAlpha", shader + ".opacity", force=True)
 
         # === Emission ===
         if mat.emission:
-            tex = cmds.shadingNode("file", asTexture=True, name=f"{shader}_Emission_tex")
+            tex_name = f"{shader}_Emission_tex"
+            tex = tex_name if cmds.objExists(tex_name) else cmds.shadingNode("file", asTexture=True, name=tex_name)
             cmds.setAttr(tex + ".fileTextureName", mat.emission, type="string")
             cmds.connectAttr(tex + ".outColor", shader + ".emissionColor", force=True)
             cmds.setAttr(shader + ".emission", 1)
 
-        # === Ambient Occlusion (AO) — optional use with baseColor
+        # === AO (optional combine with BaseColor) ===
         if mat.ao and mat.baseColor:
-            ao_tex = cmds.shadingNode("file", asTexture=True, name=f"{shader}_AO_tex")
+            ao_tex_name = f"{shader}_AO_tex"
+            ao_tex = ao_tex_name if cmds.objExists(ao_tex_name) else cmds.shadingNode("file", asTexture=True, name=ao_tex_name)
             cmds.setAttr(ao_tex + ".fileTextureName", mat.ao, type="string")
             cmds.setAttr(ao_tex + ".colorSpace", "Raw", type="string")
-            
-            mult_node = cmds.shadingNode("aiMultiply", asUtility=True, name=f"{shader}_AO_Multiply")
-            cmds.connectAttr(tex + ".outColor", mult_node + ".input1", force=True)   # baseColor
-            cmds.connectAttr(ao_tex + ".outColor", mult_node + ".input2", force=True) # AO
+
+            mult_name = f"{shader}_AO_Multiply"
+            mult_node = mult_name if cmds.objExists(mult_name) else cmds.shadingNode("aiMultiply", asUtility=True, name=mult_name)
+
+            base_tex_name = f"{shader}_BaseColor_tex"
+            cmds.connectAttr(base_tex_name + ".outColor", mult_node + ".input1", force=True)
+            cmds.connectAttr(ao_tex + ".outColor", mult_node + ".input2", force=True)
             cmds.connectAttr(mult_node + ".outColor", shader + ".baseColor", force=True)
 
         # === Transmission ===
         if mat.transmission:
-            tex = cmds.shadingNode("file", asTexture=True, name=f"{shader}_Transmission_tex")
+            tex_name = f"{shader}_Transmission_tex"
+            tex = tex_name if cmds.objExists(tex_name) else cmds.shadingNode("file", asTexture=True, name=tex_name)
             cmds.setAttr(tex + ".fileTextureName", mat.transmission, type="string")
             cmds.setAttr(tex + ".colorSpace", "Raw", type="string")
             cmds.connectAttr(tex + ".outColorR", shader + ".transmission", force=True)
 
         # === Subsurface scattering (SSS) ===
         if mat.sss:
-            tex = cmds.shadingNode("file", asTexture=True, name=f"{shader}_SSS_tex")
+            tex_name = f"{shader}_SSS_tex"
+            tex = tex_name if cmds.objExists(tex_name) else cmds.shadingNode("file", asTexture=True, name=tex_name)
             cmds.setAttr(tex + ".fileTextureName", mat.sss, type="string")
             cmds.connectAttr(tex + ".outColor", shader + ".subsurfaceColor", force=True)
             cmds.setAttr(shader + ".subsurface", 1)
