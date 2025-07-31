@@ -90,19 +90,32 @@ def create_arnold_material_array():
 
 default_mats = {"lambert1", "standardSurface1", "openPBR_shader1", "particleCloud1", "shaderGlow"}
 
+def get_user_namespaces():
+    all_ns = cmds.namespaceInfo(listOnlyNamespaces=True, recurse=True) or []
+    return [ns for ns in all_ns if ns not in ['UI', 'shared']]
+
 def apply_textures_to_materials(materials):
     default_mats = {"lambert1", "standardSurface1", "openPBR_shader1", "particleCloud1", "shaderGlow"}
 
     for mat in materials:
         mat_name = os.path.splitext(os.path.basename(mat.name))[0]
 
-        while not cmds.objExists(mat_name) and "_" in mat_name:
-            if not cmds.objExists(mat_name):
-                mat_name = mat_name.replace("_", ":", 1)
-            if not cmds.objExists(mat_name):
-                if ":" in mat_name:
-                    mat_name = mat_name.split(":", 1)[1]
+#        while not cmds.objExists(mat_name) and "_" in mat_name:
+#            if not cmds.objExists(mat_name):
+#                mat_name = mat_name.replace("_", ":", 1)
+#            if not cmds.objExists(mat_name):
+#                if ":" in mat_name:
+#                    mat_name = mat_name.split(":", 1)[1]
 
+        if not cmds.objExists(mat_name):
+            for ns in get_user_namespaces():
+                if ns in mat_name:
+                    mat_name = ns + mat_name.split(ns, 1)[1]
+                    break
+                    
+            mat_name = mat_name.replace(ns + "_", ns + ":", 1)
+            print(mat_name)
+                    
         if not cmds.objExists(mat_name):
             continue
 
