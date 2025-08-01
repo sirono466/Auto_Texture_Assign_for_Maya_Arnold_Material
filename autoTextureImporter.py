@@ -49,7 +49,8 @@ def create_arnold_material_array():
         fname = os.path.basename(tex_path)
 
         # Match pattern ignoring case, but keep original fname for mat_key
-        match = re.match(r"^(.*?)(_basecolor|_albedo|_roughness|_metalness|_normal|_height|_disp)", fname, re.IGNORECASE)
+#       match = re.match(r"^(.*?)(_basecolor|_albedo|_roughness|_metalness|_normal|_height|_disp)", fname, re.IGNORECASE)
+        match = re.match(r"^(.*?)(_basecolor|_albedo|_roughness|_metalness|_metal|_normal|_height|_disp|_opacity|_alpha|_transparency|_emissive|_emission|_selfillum|_ao|_ambientocclusion|_specular|_transmission|_glass|_sss|_subsurface)", fname, re.IGNORECASE)
         if not match:
             continue
 
@@ -208,7 +209,7 @@ def apply_textures_to_materials(materials):
             tex = tex_name if cmds.objExists(tex_name) else cmds.shadingNode("file", asTexture=True, name=tex_name)
             cmds.setAttr(tex + ".fileTextureName", mat.emission, type="string")
             cmds.connectAttr(tex + ".outColor", shader + ".emissionColor", force=True)
-            cmds.setAttr(shader + ".emission", 1)
+            cmds.connectAttr(tex + ".outAlpha", shader + ".emission", force=True)
 
         # === AO (optional combine with BaseColor) ===
         if mat.ao and mat.baseColor:
