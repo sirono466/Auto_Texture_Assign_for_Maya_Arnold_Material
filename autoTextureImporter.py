@@ -100,21 +100,22 @@ def apply_textures_to_materials(materials):
     for mat in materials:
         mat_name = os.path.splitext(os.path.basename(mat.name))[0]
 
-#        while not cmds.objExists(mat_name) and "_" in mat_name:
-#            if not cmds.objExists(mat_name):
-#                mat_name = mat_name.replace("_", ":", 1)
-#            if not cmds.objExists(mat_name):
-#                if ":" in mat_name:
-#                    mat_name = mat_name.split(":", 1)[1]
-
-        if not cmds.objExists(mat_name):
+        alt_mat_name = mat_name
+        if not cmds.objExists(alt_mat_name):
             for ns in get_user_namespaces():
                 if ns in mat_name:
-                    mat_name = ns + mat_name.split(ns, 1)[1]
-                    break
-                    
-            mat_name = mat_name.replace(ns + "_", ns + ":", 1)
-            print(mat_name)
+                    alt_mat_name = ns + mat_name.split(ns, 1)[1]
+                    alt_mat_name = mat_name.replace(ns + "_", ns + ":", 1)
+                    if cmds.objExists(alt_mat_name):
+                        mat_name = alt_mat_name
+                        break
+
+        while not cmds.objExists(mat_name) and "_" in mat_name:
+            if not cmds.objExists(mat_name):
+                mat_name = mat_name.replace("_", ":", 1)
+            if not cmds.objExists(mat_name):
+                if ":" in mat_name:
+                    mat_name = mat_name.split(":", 1)[1]
                     
         if not cmds.objExists(mat_name):
             continue
